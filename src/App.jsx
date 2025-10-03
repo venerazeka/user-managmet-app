@@ -1,15 +1,14 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Users from './admin/Users';
+import { Routes, Route } from 'react-router-dom';
+import Users from './Users';
 import UserDetails from './UserDetails';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/users" element={<Users />} />
-      </Routes>
-    </Router>
+    <Routes>
+      <Route path="/" element={<Users />} />
+      <Route path="/users/:id" element={<UserDetails />} />
+    </Routes>
   );
 }
 

@@ -1,139 +1,145 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function Users() {
   const [users, setUsers] = useState([]);
-  const [formData, setFormData] = useState({ name: '', email: '', role: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [formData, setFormData] = useState({ name: '', email: '' });
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get('https://jsonplaceholder.typicode.com/users');
-       
-        const usersData = res.data.map(user => ({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: 'user',
-        }));
-        setUsers(usersData);
-        setMessage('');
-      } catch (error) {
-        setMessage('Error fetching users');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchUsers();
   }, []);
 
-  
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get('https://jsonplaceholder.typicode.com/users');
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Gabim gjatë marrjes së të dhënave:', error);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (!formData.name.trim() || !formData.email.trim()) {
-      setMessage('Name and Email are required');
+    if (!formData.name || !formData.email) {
+      setMessage('Emri dhe emaili janë të detyrueshëm!');
       return;
     }
 
-    const newUser = {
-      id: Date.now(), //
-      name: formData.name,
-      email: formData.email,
-      role: formData.role || 'user',
-    };
-
-    setUsers([newUser, ...users]);
-    setFormData({ name: '', email: '', role: '' });
-    setMessage('User added locally!');
+    if (editingId !== null) {
+     
+      const updatedUsers = users.map(user =>
+        user.id === editingId ? { ...user, name: formData.name, email: formData.email } : user
+      );
+      setUsers(updatedUsers);
+      setMessage('Përdoruesi u përditësua me sukses.');
+      setEditingId(null);
+    } else {
+     
+      const newUser = {
+        id: users.length + 1,
+        name: formData.name,
+        email: formData.email,
+        company: { name: 'Local User' }
+      };
+      setUsers([newUser, ...users]);
+      setMessage('Përdoruesi u shtua me sukses.');
+    }
+    setFormData({ name: '', email: '' });
   };
 
-  
   const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== id));
-      setMessage('User deleted locally');
+    const filtered = users.filter(user => user.id !== id);
+    setUsers(filtered);
+    setMessage('Përdoruesi u fshi me sukses.');
+   
+    if (editingId === id) {
+      setEditingId(null);
+      setFormData({ name: '', email: '' });
     }
   };
 
+  const handleEdit = (id) => {
+    const userToEdit = users.find(user => user.id === id);
+    if (userToEdit) {
+      setFormData({ name: userToEdit.name, email: userToEdit.email });
+      setEditingId(id);
+    }
+  };
+
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="container mt-5">
-      <h1 className="mb-4">User Management</h1>
+    <div className="d-flex">
+      <div className="container mt-5">
+        <h2 className="mb-4">Menaxhimi i Përdoruesve</h2>
 
-      {message && <div className="alert alert-info">{message}</div>}
+        <form onSubmit={handleSubmit} className="mb-4">
+          <input
+            type="text"
+            placeholder="Emri"
+            className="form-control mb-2"
+            value={formData.name}
+            onChange={e => setFormData({ ...formData, name: e.target.value })}
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            className="form-control mb-2"
+            value={formData.email}
+            onChange={e => setFormData({ ...formData, email: e.target.value })}
+          />
+          <button type="submit" className="btn btn-primary">
+            {editingId !== null ? 'Update' : 'Add'}
+          </button>
+        </form>
 
-      <form onSubmit={handleSubmit} className="mb-4">
+        {message && <div className="alert alert-info">{message}</div>}
+
         <input
           type="text"
-          placeholder="Name"
-          className="form-control mb-2"
-          value={formData.name}
-          onChange={e => setFormData({ ...formData, name: e.target.value })}
+          placeholder="Search by name or email"
+          className="form-control mb-3"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
         />
-        <input
-          type="email"
-          placeholder="Email"
-          className="form-control mb-2"
-          value={formData.email}
-          onChange={e => setFormData({ ...formData, email: e.target.value })}
-        />
-        <select
-          className="form-control mb-2"
-          value={formData.role}
-          onChange={e => setFormData({ ...formData, role: e.target.value })}
-        >
-          <option value="">Select Role</option>
-          <option value="admin">Admin</option>
-          <option value="user">User</option>
-        </select>
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          Add User
-        </button>
-      </form>
 
-      {loading ? (
-        <p>Loading users...</p>
-      ) : (
-        <table className="table table-striped">
+        <table className="table table-bordered">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Name</th>
+              <th>Emri</th>
               <th>Email</th>
-              <th>Role</th>
-              <th>Actions</th>
+              <th>Kompania</th>
+              <th>Veprime</th>
             </tr>
           </thead>
           <tbody>
-            {users.map(user => (
+            {filteredUsers.map(user => (
               <tr key={user.id}>
-                <td>{user.id}</td>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{user.role}</td>
                 <td>
-                  
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(user.id)}>
-                    Delete
-                  </button>
+               <Link to={`/users/${user.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+  {user.name}
+</Link>
+
+                </td>
+                <td>{user.email}</td>
+                <td>{user.company?.name}</td>
+                <td>
+                  <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(user.id)}>Edit</button>
+                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>Delete</button>
                 </td>
               </tr>
             ))}
-            {users.length === 0 && (
-              <tr>
-                <td colSpan="5" className="text-center">
-                  No users found
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
-      )}
+      </div>
     </div>
   );
 }
